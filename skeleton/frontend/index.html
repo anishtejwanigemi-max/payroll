@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payroll Reconciliation Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        
+        .metric-card {
+            background: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 0.5rem;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .report-section {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+
+        .report-content {
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .report-content h1, .report-content h2, .report-content h3 {
+            color: #1e293b;
+            font-weight: 600;
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .report-content h1 { font-size: 1.5rem; }
+        .report-content h2 { font-size: 1.25rem; }
+        .report-content h3 { font-size: 1.1rem; }
+        
+        .report-content p { margin: 1rem 0; }
+        
+        .report-content pre {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .report-content code {
+            font-family: ui-monospace, monospace;
+            font-size: 0.9rem;
+            color: #334155;
+        }
+        
+        .report-content table {
+            width: 100%;
+            margin: 1.5rem 0;
+            border-collapse: collapse;
+        }
+        
+        .report-content thead {
+            background: #f8fafc;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #475569;
+        }
+        
+        .report-content th, .report-content td {
+            padding: 0.75rem 1rem;
+            border: 1px solid #e2e8f0;
+            text-align: left;
+        }
+
+        .pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: .5;
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .bg-pattern {
+            background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: flex-start;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 0.75rem;
+            transition: all 0.3s ease;
+        }
+
+        .step-item.active {
+            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+            color: white;
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .step-item.completed {
+            background: #10b981;
+            color: white;
+        }
+
+        .step-item.pending {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .step-item.error {
+            background: #ef4444;
+            color: white;
+        }
+
+        .step-number {
+            flex-shrink: 0;
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.875rem;
+            margin-right: 1rem;
+        }
+
+        .step-item.pending .step-number {
+            background: #d1d5db;
+            color: #6b7280;
+        }
+
+        .step-item.active .step-number {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .step-item.completed .step-number {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .step-item.error .step-number {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="min-h-screen bg-pattern">
+        <!-- Top Navigation Bar -->
+        <nav class="glass-card sticky top-0 z-50 mb-6">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center space-x-4">
+                        <svg class="h-8 w-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                        </svg>
+                        <h1 class="gradient-text text-2xl font-bold">Payroll Reconciliation Dashboard</h1>
+                    </div>
+                    <div class="flex items-center">
+                        <span id="last-update" class="text-sm text-gray-600 font-medium"></span>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <!-- Metrics Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <!-- System Status -->
+                <div class="metric-card fade-in">
+                    <h3 class="text-sm font-medium text-gray-600 mb-3">System Status</h3>
+                    <div id="system-status" class="flex items-center">
+                        <div class="status-indicator bg-gray-300 pulse"></div>
+                        <span class="text-lg font-semibold text-gray-800">Waiting</span>
+                    </div>
+                </div>
+
+                <!-- Files Ready -->
+                <div class="metric-card fade-in" style="animation-delay: 0.1s">
+                    <h3 class="text-sm font-medium text-gray-600 mb-3">Files Ready</h3>
+                    <div class="flex items-baseline">
+                        <span id="files-ready" class="text-3xl font-bold text-indigo-600">0</span>
+                        <span class="text-gray-500 ml-2 text-lg">/5</span>
+                    </div>
+                </div>
+
+                <!-- Last Processing Time -->
+                <div class="metric-card fade-in" style="animation-delay: 0.2s">
+                    <h3 class="text-sm font-medium text-gray-600 mb-3">Last Processed</h3>
+                    <div id="last-processed-time" class="text-lg font-semibold text-gray-800">
+                        Never
+                    </div>
+                </div>
+
+                <!-- Processing Status -->
+                <div class="metric-card fade-in" style="animation-delay: 0.3s">
+                    <h3 class="text-sm font-medium text-gray-600 mb-3">Processing Status</h3>
+                    <div id="processing-status" class="text-lg font-semibold text-gray-800">
+                        Idle
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content Area -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Report Panel -->
+                <div class="lg:col-span-2 fade-in" style="animation-delay: 0.4s">
+                    <div class="report-section p-8">
+                        <div class="flex items-center mb-6">
+                            <svg class="h-6 w-6 text-indigo-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            <h2 class="text-xl font-bold text-gray-900">Latest Reconciliation Report</h2>
+                        </div>
+                        <div id="report-content" class="report-content prose max-w-none">
+                            <p class="text-gray-500">No reports available yet. Upload all required files to start processing.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Processing Steps Panel -->
+                <div class="lg:col-span-1 fade-in" style="animation-delay: 0.5s">
+                    <div class="report-section p-6">
+                        <div class="flex items-center mb-6">
+                            <svg class="h-6 w-6 text-indigo-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                            </svg>
+                            <h2 class="text-xl font-bold text-gray-900">Processing Steps</h2>
+                        </div>
+                        
+                        <div id="error" class="hidden mb-4">
+                            <div class="rounded-md bg-red-50 border border-red-200 p-4">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                        </svg>
+                                    </div>
+                                    <div class="ml-3">
+                                        <h3 class="text-sm font-medium text-red-800">Processing Error</h3>
+                                        <div class="mt-2 text-sm text-red-700">
+                                            <p id="error-message"></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="processing-steps" class="space-y-3">
+                            <!-- Processing steps will be dynamically populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // DOM Elements
+        const systemStatus = document.getElementById('system-status');
+        const filesReady = document.getElementById('files-ready');
+        const lastProcessedTime = document.getElementById('last-processed-time');
+        const processingStatus = document.getElementById('processing-status');
+        const reportContent = document.getElementById('report-content');
+        const errorDiv = document.getElementById('error');
+        const errorMessage = document.getElementById('error-message');
+        const processingSteps = document.getElementById('processing-steps');
+        const lastUpdate = document.getElementById('last-update');
+
+        // Processing steps configuration
+        const steps = [
+            { id: 'waiting', name: 'Waiting for Files', description: 'Upload all 5 required files' },
+            { id: 'loading', name: 'Loading Data', description: 'Reading and parsing uploaded files' },
+            { id: 'checking_missing', name: 'Checking Missing Employees', description: 'Finding active employees missing from pay register' },
+            { id: 'checking_terminated', name: 'Checking Terminated Employees', description: 'Finding terminated employees in pay register' },
+            { id: 'checking_variance', name: 'Checking Net Pay Variance', description: 'Comparing May vs June net pay amounts' },
+            { id: 'checking_gl', name: 'GL Reconciliation', description: 'Validating pay register against GL data' },
+            { id: 'generating_report', name: 'Generating Report', description: 'Compiling final reconciliation report' },
+            { id: 'completed', name: 'Process Complete', description: 'All checks completed successfully' }
+        ];
+
+        let currentStep = 'waiting';
+        let stepStatuses = {};
+
+        function initializeSteps() {
+            steps.forEach(step => {
+                stepStatuses[step.id] = 'pending';
+            });
+            renderSteps();
+        }
+
+        function updateStepStatus(stepId, status) {
+            if (stepStatuses[stepId] !== status) {
+                stepStatuses[stepId] = status;
+                if (status === 'active') {
+                    currentStep = stepId;
+                }
+                renderSteps();
+            }
+        }
+
+        function renderSteps() {
+            processingSteps.innerHTML = '';
+            
+            steps.forEach((step, index) => {
+                const status = stepStatuses[step.id];
+                const stepElement = document.createElement('div');
+                stepElement.className = `step-item ${status}`;
+                
+                let icon = '';
+                if (status === 'active') {
+                    icon = `<svg class="w-4 h-4 spinner" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>`;
+                } else if (status === 'completed') {
+                    icon = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>`;
+                } else if (status === 'error') {
+                    icon = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>`;
+                } else {
+                    icon = `<span class="text-xs">${index + 1}</span>`;
+                }
+                
+                stepElement.innerHTML = `
+                    <div class="step-number">
+                        ${icon}
+                    </div>
+                    <div class="flex-1">
+                        <div class="font-medium text-sm">${step.name}</div>
+                        <div class="text-xs mt-1 opacity-80">${step.description}</div>
+                    </div>
+                `;
+                
+                processingSteps.appendChild(stepElement);
+            });
+        }
+
+        function simulateProcessingSteps(isProcessing) {
+            if (isProcessing) {
+                // Reset all steps to pending first
+                steps.forEach(step => {
+                    stepStatuses[step.id] = 'pending';
+                });
+                
+                // Start the processing simulation
+                let currentIndex = 1; // Start with loading
+                updateStepStatus('loading', 'active');
+                
+                const stepInterval = setInterval(() => {
+                    // Complete current step
+                    updateStepStatus(steps[currentIndex].id, 'completed');
+                    
+                    currentIndex++;
+                    
+                    if (currentIndex < steps.length) {
+                        // Start next step
+                        updateStepStatus(steps[currentIndex].id, 'active');
+                    } else {
+                        // All steps completed
+                        clearInterval(stepInterval);
+                    }
+                }, 2000); // 2 seconds per step
+            } else {
+                // Reset to waiting state when not processing
+                steps.forEach(step => {
+                    stepStatuses[step.id] = step.id === 'waiting' ? 'active' : 'pending';
+                });
+                renderSteps();
+            }
+        }
+
+        function updateMetrics(status) {
+            // Update system status indicator
+            let statusColor = 'bg-gray-300';
+            let statusText = 'Offline';
+            
+            if (!status.error) {
+                if (status.is_processing) {
+                    statusColor = 'bg-blue-500';
+                    statusText = 'Processing';
+                    simulateProcessingSteps(true);
+                } else {
+                    statusColor = 'bg-green-500';
+                    statusText = 'Online';
+                    simulateProcessingSteps(false);
+                }
+            } else {
+                statusColor = 'bg-red-500';
+                statusText = 'Error';
+            }
+            
+            systemStatus.innerHTML = `
+                <div class="h-3 w-3 rounded-full mr-2 ${statusColor}"></div>
+                <span class="text-lg font-semibold">${statusText}</span>
+            `;
+
+            // Update files ready count
+            const readyCount = Object.values(status.required_files)
+                .filter(file => file.status === 'present').length;
+            filesReady.textContent = readyCount;
+
+            // Update step status based on file readiness
+            if (readyCount === 5 && !status.is_processing && !status.error) {
+                updateStepStatus('waiting', 'completed');
+            } else if (readyCount < 5) {
+                updateStepStatus('waiting', 'active');
+            }
+
+            // Update last processed time
+            if (status.last_processed) {
+                lastProcessedTime.textContent = new Date(status.last_processed).toLocaleString();
+            }
+
+            // Update processing status
+            if (status.is_processing) {
+                processingStatus.innerHTML = `
+                    <div class="flex items-center">
+                        <svg class="animate-spin h-4 w-4 mr-2 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Processing
+                    </div>`;
+            } else {
+                processingStatus.textContent = 'Idle';
+            }
+
+            // Show/hide error message
+            if (status.error) {
+                errorMessage.textContent = status.error;
+                errorDiv.classList.remove('hidden');
+                // Mark current step as error
+                if (currentStep && currentStep !== 'waiting') {
+                    updateStepStatus(currentStep, 'error');
+                }
+            } else {
+                errorDiv.classList.add('hidden');
+            }
+
+            // Update report content if available
+            if (status.last_report) {
+                reportContent.innerHTML = marked.parse(status.last_report);
+                // Mark completion step as completed if report is available
+                updateStepStatus('completed', 'completed');
+            } else {
+                if (readyCount === 0) {
+                    reportContent.innerHTML = '<p class="text-gray-500">No reports available yet. Upload all required files to start processing.</p>';
+                } else {
+                    reportContent.innerHTML = '<p class="text-gray-500">Waiting for all files to be uploaded...</p>';
+                }
+            }
+
+            // Update last update time
+            lastUpdate.textContent = `Last updated: ${new Date().toLocaleString()}`;
+        }
+
+        async function checkStatus() {
+            try {
+                const response = await fetch('http://127.0.0.1:8000/api/status');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch status');
+                }
+                const status = await response.json();
+                updateMetrics(status);
+            } catch (error) {
+                console.error('Error checking status:', error);
+                systemStatus.innerHTML = `
+                    <div class="h-3 w-3 rounded-full mr-2 bg-red-500"></div>
+                    <span class="text-lg font-semibold">Offline</span>
+                `;
+                errorMessage.textContent = 'Failed to connect to the server. Please ensure the backend service is running.';
+                errorDiv.classList.remove('hidden');
+            }
+        }
+
+        // Initialize the dashboard
+        initializeSteps();
+        
+        // Check status immediately and then every 5 seconds
+        checkStatus();
+        setInterval(checkStatus, 5000);
+    </script>
+</body>
+</html>
