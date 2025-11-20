@@ -1,0 +1,94 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: payroll-reconciliation-dashboard
+  title: Payroll Reconciliation Dashboard
+  description: A dashboard to reconcile payroll data using a Gemini-powered agent.
+  tags:
+    - payroll
+    - python
+    - fastapi
+    - gemini
+spec:
+  owner: finance-team
+  type: website
+
+  parameters:
+    - title: Basic Service Information
+      required:
+        - name
+        - owner
+      properties:
+        name:
+          type: string
+          title: Service Name
+          description: The name of the payroll reconciliation service.
+        description:
+          type: string
+          title: Description
+          description: A brief description of the service.
+        owner:
+          title: Owner
+          type: string
+          description: Owner of the component
+          ui:field: OwnerPicker
+
+    - title: Configuration
+      required:
+        - geminiApiKey
+      properties:
+        geminiApiKey:
+          type: string
+          title: Gemini API Key
+          description: Your Google Gemini API key for the payroll agent.
+          ui:widget: password
+
+    - title: Repository Info
+      required:
+        - repoUrl
+      properties:
+        repoUrl:
+          type: string
+          title: Repository URL
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - github.com
+
+  steps:
+    - id: fetch-template
+      name: Scaffold Files
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          # Basic info
+          name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          destination: ${{ parameters.repoUrl | parseRepoUrl }}
+      
+          # Configuration
+          geminiApiKey: ${{ parameters.geminiApiKey }}
+
+    - id: publish
+      name: Publish to GitHub
+      action: publish:github
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+        description: ${{ parameters.description }}
+        repoVisibility: public
+
+    - id: register
+      name: Register in Backstage Catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps.publish.output.repoContentsUrl }}
+        catalogInfoPath: '/catalog-info.yaml'
+
+  output:
+    links:
+      - title: Open in Catalog
+        url: ${{ steps.register.output.entityRef }}
+      - title: View Repository
+        url: ${{ steps.publish.output.remoteUrl }}
